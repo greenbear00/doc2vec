@@ -31,8 +31,10 @@ class TestEDA(unittest.TestCase):
 
 		step = 10
 		ori_df = load_pdf("news.csv", sep="^")
+		print(ori_df.shape)
+		ori_df.drop_duplicates(['news_id'], keep='last', inplace=True)
 
-		# 제거할 거 (news_nm기준으로 제거, 65,144 -> 64,712로 432개 article이 제거됨 )
+		# 제거할 거 (news_nm기준으로 제거, 13,405 -> 12,553로 의미 없는 기사 제거 )
 		# - 클로징, BGM, 썰전 라이브 다시보기(-> 이건 text 내용이 없음)
 		# 사용자 history 기반 news 수 :
 		#          news_id  ...                                       news_content
@@ -41,6 +43,7 @@ class TestEDA(unittest.TestCase):
 		ori_df['is_in_str'] = ori_df['news_nm'].apply(is_contain_str)
 		df = ori_df[~ori_df['is_in_str']==True].copy()
 		df.reset_index(drop=True, inplace=True)
+		print(df.shape)
 
 		analyzed_df = pd.DataFrame(columns=['news_id', 'tagged_doc'])
 
@@ -164,10 +167,21 @@ class TestEDA(unittest.TestCase):
 		# 모델(default) : model/model.doc2vec
 
 		news_df = load_pdf('news.csv', sep="^")
+		news_df.drop_duplicates(['news_id'], keep='last', inplace=True)
+
+		# 제거할 거 (news_nm기준으로 제거, 13,405 -> 12,553로 의미 없는 기사 제거 )
+		# - 클로징, BGM, 썰전 라이브 다시보기(-> 이건 text 내용이 없음)
+		# 사용자 history 기반 news 수 :
+		#          news_id  ...                                       news_content
+		# 65139  NB12045093  ...  <div id='div_NV10478125' ...
+		# 65140  NB12045094  ...  <div id='div_NV10478127' ...
+		news_df['is_in_str'] = news_df['news_nm'].apply(is_contain_str)
+		news_df = news_df[~news_df['is_in_str'] == True].copy()
+		news_df.reset_index(drop=True, inplace=True)
 
 		d2v_model = gensim.models.doc2vec.Doc2Vec.load(os.path.join(rootpath.detect(), *['model', 'model.doc2vec']))
 		# data = load_pickle(os.path.join(rootpath.detect(), *["data", "rec","parsing_data.pickle"]))
-		data = load_pickle(os.path.join(rootpath.detect(), *["data", "rec", "test_tagged_doc.pickle"]))
+		data = load_pickle(os.path.join(rootpath.detect(), *["data", "rec", "train_tagged_doc.pickle"]))
 
 		self._check_sim_news(data[:10], news_df, d2v_model)
 

@@ -18,8 +18,7 @@ def generate_tagged_document_by_pandas(x_train_df, y_train_series):
 	return docs
 
 
-
-def reform_news_df(df:pd.DataFrame):
+def reform_news_df(df: pd.DataFrame):
 	# service_date = datetime.strptime("202111041817", '%Y%m%d%H%M')
 	# print("service_date", service_date.strftime('%Y-%m-%dT%H:%M:%S+09:00'))
 	#
@@ -28,40 +27,42 @@ def reform_news_df(df:pd.DataFrame):
 	df = df.astype({'service_dt': str})
 	df['service_dt'] = df['service_dt'].apply(lambda x: datetime.strptime(x, '%Y%m%d%H%M').strftime(
 		'%Y-%m-%dT%H:%M:%S+09:00'))
-	df = df.rename(columns={'title':'news_nm', 'article_contents_bulk':'news_content', 'section_name':'section',
-							'service_dt':'service_date'})
+	df = df.rename(columns={'title': 'news_nm', 'article_contents_bulk': 'news_content', 'section_name': 'section',
+							'service_dt': 'service_date'})
 
 	df.drop(columns=['unnamed: 0'], inplace=True)
 
 	print(df.tail())
-	write_pdf(df, "news.csv", sep="^")
+	return df
 
-def load_pdf(file_name: str = "view_data.csv", sep:str=",") -> pd:
+
+def load_pdf(file_name: str = "view_data.csv", sep: str = ",", file_path: str = None) -> pd:
 	# root_path = Path(__file__).parent.parent.parent
-	file_path = os.path.join(rootpath.detect(), *["data", "rec", file_name])
-	load_pdf = pd.read_csv(file_path, sep=sep)
-	load_pdf.columns = load_pdf.columns.str.lower()
+	if not file_path:
+		file_path = os.path.join(rootpath.detect(), *["data", "rec", file_name])
+	df = pd.read_csv(file_path, sep=sep)
+	df.columns = df.columns.str.lower()
 
-	load_pdf = load_pdf.replace({np.nan: None})
+	df = df.replace({np.nan: None})
 
-	if 'service_date' in load_pdf.columns:
-		load_pdf['service_date'] = pd.to_datetime(load_pdf['service_date'])
+	if 'service_date' in df.columns:
+		df['service_date'] = pd.to_datetime(df['service_date'])
 
 	print(f"file_path : {file_path}")
 	print(f"file_name : {file_name}")
 	print("DATA INFO")
-	print(tabulate(load_pdf.info(), tablefmt="psql", headers="keys"))
-	print("-"*100)
+	print(tabulate(df.info(), tablefmt="psql", headers="keys"))
+	print("-" * 100)
 	print("DATA IS_NULL")
 
-	print(tabulate(pd.DataFrame(load_pdf.isnull().sum()), tablefmt="psql", headers="keys"))
+	print(tabulate(pd.DataFrame(df.isnull().sum()), tablefmt="psql", headers="keys"))
 
-	return load_pdf
+	return df
 
 
 def is_contain_str(news_nm):
 	check_str_li = ['BGM', '클로징', '썰전 라이브 다시보기']
-	pop_list = list(filter(lambda x: x in news_nm, check_str_li ))
+	pop_list = list(filter(lambda x: x in news_nm, check_str_li))
 	if pop_list:
 		return True
 	else:
@@ -82,12 +83,12 @@ def generate_tagged_document(data):
 	return docs
 
 
-def user_history_df(file_path:str):
+def user_history_df(file_path: str):
 	load_df = load_pdf(file_path)
 	return load_df
 
 
-def normalize_d2v_docuemnt(model: gensim.models.doc2vec.Doc2Vec, d2v_document:list):
+def normalize_d2v_docuemnt(model: gensim.models.doc2vec.Doc2Vec, d2v_document: list):
 	news_topic_arr = []
 
 	for td in d2v_document:
@@ -109,10 +110,10 @@ def normalize_d2v_docuemnt(model: gensim.models.doc2vec.Doc2Vec, d2v_document:li
 
 		for idx, t in enumerate(topics):
 			news_topic_arr.append([news_id, idx, t / norm])
-		# print(news_topic_arr1)
+	# print(news_topic_arr1)
 
 	topic_df = pd.DataFrame(
-		columns = ['news_id', 'topic', 'w'],
+		columns=['news_id', 'topic', 'w'],
 		data=news_topic_arr
 	)
 
@@ -122,7 +123,7 @@ def normalize_d2v_docuemnt(model: gensim.models.doc2vec.Doc2Vec, d2v_document:li
 	return topic_df
 
 
-def write_pdf(load_pdf: pd, file_name: str, sep:str=',') -> bool:
+def write_pdf(load_pdf: pd, file_name: str, sep: str = ',') -> bool:
 	flag = True
 	path = Path(__file__).parent.parent.parent
 
@@ -142,4 +143,3 @@ def write_pdf(load_pdf: pd, file_name: str, sep:str=',') -> bool:
 		flag = False
 
 	return flag
-
