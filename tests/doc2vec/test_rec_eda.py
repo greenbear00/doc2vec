@@ -11,10 +11,11 @@ import pandas as pd
 import os
 from doc2vec.util.common import load_pickle, save_pickle
 from doc2vec.util.conf_parser import Parser
-import numpy as np
 import gensim
 from tabulate import tabulate
 from tqdm import tqdm
+import numpy as np
+from doc2vec.util.common import set_pandas_format, set_matplotlib_sns_font
 
 
 class TestEDA(unittest.TestCase):
@@ -22,6 +23,8 @@ class TestEDA(unittest.TestCase):
 	def setUp(self) -> None:
 		self.logger = Logger(file_name=self.__class__.__name__).logger
 		self.p = Parser()
+		set_pandas_format()
+		set_matplotlib_sns_font()
 
 		self.nori = NoriAnalyzer(**self.p.elastic_conf)
 
@@ -67,6 +70,16 @@ class TestEDA(unittest.TestCase):
 			save_pickle(os.path.join(rootpath.detect(), *["data", "rec", "parsing_data_df.pickle"]),
 						analyzed_df)
 
+	def test_check_word_dist(self):
+		from nltk.probability import FreqDist
+		parsing_df = load_pickle(os.path.join(rootpath.detect(), *["data", "rec", "parsing_data_df.pickle"]))
+
+		word_split = []
+		for i in range(len(parsing_df)):
+			for j in parsing_df.iloc[i]['tagged_doc']:
+				word_split.append(j)
+
+		FreqDist(word_split).plot(30)
 
 	def test_generate_d2v_tagducument(self):
 		""" step 2) elastic기반 corpus를 tagged_doc으로 변환"""
@@ -91,7 +104,9 @@ class TestEDA(unittest.TestCase):
 
 		train_tagged_doc = generate_tagged_document_by_pandas(x_train, y_train)
 		test_tagged_doc = generate_tagged_document_by_pandas(x_test, y_test)
-		# tagged_doc = generate_tagged_document(parsing_data)
+
+		# train_tagged_doc.pickle
+		# - [TaggedDocument(words=[...], tags=['NB12043728']), ....]
 		save_pickle(os.path.join(rootpath.detect(), *["data", "rec", "train_tagged_doc.pickle"]), train_tagged_doc)
 		save_pickle(os.path.join(rootpath.detect(), *["data", "rec", "test_tagged_doc.pickle"]), test_tagged_doc)
 
@@ -151,6 +166,9 @@ class TestEDA(unittest.TestCase):
 			inferred = d2v_model.infer_vector(a_data.words)
 			sims = d2v_model.dv.most_similar(inferred, topn=5)
 
+			# y_train, features
+			# targets, feature_vectors = zip(*[(selected_news_id, d2v_model.infer_vector(a_data.words))])
+
 			for sim in sims:
 				news_id = sim[0]
 				sim_value = sim[1]
@@ -180,10 +198,53 @@ class TestEDA(unittest.TestCase):
 		news_df.reset_index(drop=True, inplace=True)
 
 		d2v_model = gensim.models.doc2vec.Doc2Vec.load(os.path.join(rootpath.detect(), *['model', 'model.doc2vec']))
-		# data = load_pickle(os.path.join(rootpath.detect(), *["data", "rec","parsing_data.pickle"]))
-		data = load_pickle(os.path.join(rootpath.detect(), *["data", "rec", "train_tagged_doc.pickle"]))
+
+		# test 데이터를 가지고, 얼마나 모델에서 학습된 데이터와 유사도 있는 데이터를 찾는지 확인하기
+		data = load_pickle(os.path.join(rootpath.detect(), *["data", "rec", "test_tagged_doc.pickle"]))
 
 		self._check_sim_news(data[:10], news_df, d2v_model)
+
+	def _vector_for_learning(self, model, tagged_docs):
+
+		# li = [[1,[1,1]], [2, [2,2]]]
+		# zip_a, zip_b = zip(*(li))
+		# zip_a = (1, 2)
+		# zip_b = ([1,1], [2,2])
+		targets, feature_vectors = zip(*[(tag_doc.tags[0], model.infer_vector(tag_doc.words)) for tag_doc in tagged_docs])
+
+	def test_to_verify(self):
+		d2v_model = gensim.models.doc2vec.Doc2Vec.load(os.path.join(rootpath.detect(), *['model', 'model.doc2vec']))
+
+		# train_tagged_doc.pickle
+		# - [TaggedDocument(words=[...], tags=['NB12043728']), ....]
+		train_data = load_pickle(os.path.join(rootpath.detect(), *["data", "rec", "train_tagged_doc.pickle"]))
+		test_data = load_pickle(os.path.join(rootpath.detect(), *["data", "rec",
+																			   "test_tagged_doc.pickle"]))
+		from sklearn.linear_model import LogisticRegression
+		# lr =
+
+		y_train, x_train = self._vector_for_learning(d2v_model, train_data)
+		y_test, x_test = self._vector_for_learning(d2v_model, test_data)
+		pass
+
+	def test_cosine_similarity(self):
+		d2v_model = gensim.models.doc2vec.Doc2Vec.load(os.path.join(rootpath.detect(), *['model', 'model.doc2vec']))
+		train_data = load_pickle(os.path.join(rootpath.detect(), *["data", "rec", "train_tagged_doc.pickle"]))
+
+		print(train_data[0].tags[0], self.cos_similarity(d2v_model.infer_vector(train_data[0].words),
+								  d2v_model.infer_vector(train_data[0].words)))
+		print(d2v_model.dv.most_similar(d2v_model.infer_vector(train_data[0].words), topn=20))
+
+
+	def cos_similarity(self, v1, v2):
+		dot_product = np.dot(v1, v2)
+		l2_norm = (np.sqrt(sum(np.square(v1))) * np.sqrt(sum(np.square(v2))))
+		similarity = dot_product / l2_norm
+		return similarity
+
+	# def make_user_embedding
+
+
 
 
 
