@@ -4,6 +4,7 @@ from doc2vec.schema.SchemaGenerator import SchemaGenerator
 from doc2vec.elastic.ElasticGenerator import ElasticGenerator
 from datetime import datetime
 import re
+import string
 
 from doc2vec.util.common import clean_html_tag_in_text
 
@@ -40,6 +41,7 @@ class NoriAnalyzer(ElasticGenerator):
 		news_contents = {}
 		text_position = [0]
 		before_position = 0
+		table = str.maketrans(dict.fromkeys(string.punctuation))
 
 		# print(df.news_id.values)
 		for idx, row in df.iterrows():
@@ -50,6 +52,7 @@ class NoriAnalyzer(ElasticGenerator):
 			clean_news_content = clean_html_tag_in_text(news_content)
 			clean_news_content = clean_news_content.replace('\n', '').replace("\r", '').replace("|", '')
 			clean_news_content = clean_news_content.strip()
+			clean_news_content = clean_news_content.translate(table)
 
 			news_content_size = len(clean_news_content)
 			# text_position.append(before_position)
