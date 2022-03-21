@@ -16,6 +16,8 @@ from tabulate import tabulate
 from tqdm import tqdm
 import numpy as np
 from doc2vec.util.common import set_pandas_format, set_matplotlib_sns_font
+import matplotlib.pyplot as plt
+from wordcloud import WordCloud
 
 
 class TestEDA(unittest.TestCase):
@@ -79,7 +81,16 @@ class TestEDA(unittest.TestCase):
 			for j in parsing_df.iloc[i]['tagged_doc']:
 				word_split.append(j)
 
-		FreqDist(word_split).plot(30)
+		FreqDist(word_split).plot(50)
+
+		wv = WordCloud(font_path='/System/Library/Fonts/Supplemental/AppleGothic.ttf',
+					   background_color='white', max_words=100, max_font_size=300,
+					   width=1000, height=1000)
+		wv.generate(str(parsing_df['tagged_doc']))
+		plt.imshow(wv)
+		plt.show()
+
+
 
 	def test_generate_d2v_tagducument(self):
 		""" step 2) elastic기반 corpus를 tagged_doc으로 변환"""
