@@ -88,6 +88,7 @@ class TestEDA(unittest.TestCase):
 					   width=1000, height=1000)
 		wv.generate(str(parsing_df['tagged_doc']))
 		plt.imshow(wv)
+		plt.axis("off")
 		plt.show()
 
 
