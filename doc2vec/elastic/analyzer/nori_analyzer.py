@@ -35,30 +35,45 @@ class NoriAnalyzer(ElasticGenerator):
 		self.create_index_with_setting(index_name=index_name, template_name=template_name, template=template)
 		return index_name
 
+	def _remove_text_in_title(self, title):
+		regex = re.compile(r'(발품뉴스|단독|속보|뉴스룸 다시보기|오늘, 이장면|매트릭스|백브리핑|날씨박사|날씨|'
+						   r'종합|공식|전문|JTBC빅데이터랩|중국은,왜|Q&A|'
+						   r'일문일답|크로스체크|르포|밀착카메라|인터뷰|걸어서 인터뷰ON|여론 읽어주는 기자|)'
+						   r'뉴스체크|앵커코멘트|캠프나우|민심 워크맨|영상구성|'
+						   r'박상욱의 기후 1.5|팩트체크|맞장토론|취재썰|색다른 시선|리뷰|현장연상|이런법이|국민채점단|D:인사이드|포토|땅땅땅|마크맨이 간다|종합|'
+						   r'영상|이슈체크|대선토론|썰전 라이브|JTBC 여론조사|마크맨이 본 대선|200309 소셜라이브|앵커|기자')
+		return regex.sub('', title)
+
 	def get_parsing_news_contents_from_csv(self, df: pd.DataFrame):
 		news_contents_parsing = {}
 		prefix_index = 'test-doc2vec'
 		news_contents = {}
 		text_position = [0]
 		before_position = 0
-		table = str.maketrans(dict.fromkeys(string.punctuation))
+		table = str.maketrans({key: " " for key in string.punctuation})
 
 		# print(df.news_id.values)
 		for idx, row in df.iterrows():
 			# print(idx, row['news_id'], row['news_content'][:10])
-			news_content = row['news_nm'] + " " + row['news_content']
+			news_nm = self._remove_text_in_title(row['news_nm'].translate(table))
+			news_nm = news_nm.replace('\n', '').replace("\r", '').replace("|", '')
+			news_nm = news_nm.strip()
+
+			# news_content = news_nm + " " + row['article_contents']
 			news_id = row['news_id']
 			# clean_news_content = clean_html_tag_in_text(row['news_content'])
-			clean_news_content = clean_html_tag_in_text(news_content)
-			clean_news_content = clean_news_content.replace('\n', '').replace("\r", '').replace("|", '')
-			clean_news_content = clean_news_content.strip()
-			clean_news_content = clean_news_content.translate(table)
+			news_content = clean_html_tag_in_text(row['article_contents'])
+			news_content = self._remove_text_in_title(news_content.translate(table))
+			news_content = news_content.replace('\n', '').replace("\r", '').replace("|", '')
 
-			news_content_size = len(clean_news_content)
+
+			clean_news = news_nm + " " + news_content
+
+			news_content_size = len(clean_news)
 			# text_position.append(before_position)
 			text_position.append(text_position[-1] + news_content_size + 1)
 			# before_position += (news_content_size + 1)
-			news_contents[row['news_id']] = clean_news_content
+			news_contents[row['news_id']] = clean_news
 
 			# self.logger.info(news_id)
 
@@ -82,6 +97,7 @@ class NoriAnalyzer(ElasticGenerator):
 		index = 0
 		for k, v in news_contents.items():
 			news_contents_parsing[k] = tokens[index]
+			print(k, ": ", tokens[index][:20])
 			index += 1
 
 		return news_contents_parsing

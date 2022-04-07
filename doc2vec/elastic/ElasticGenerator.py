@@ -266,7 +266,7 @@ class ElasticGenerator(metaclass=ABCMeta):
 						# 3. open 수행
 						self.logger.info(f"modify settings in index: {index_name}")
 						settings = template.get('template').get('settings')
-						settings.pop('lifecycle')
+						# settings.pop('lifecycle')
 						settings.pop('number_of_shards')
 						settings.pop('number_of_replicas')
 

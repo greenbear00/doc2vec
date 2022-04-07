@@ -1,13 +1,13 @@
 import unittest
 from datetime import datetime, timedelta
-
+from doc2vec.preprocessing.preprocessing import *
 from doc2vec.util.Logger import Logger
 from doc2vec.util.conf_parser import Parser
 from doc2vec.elastic.analyzer.nori_analyzer import NoriAnalyzer
 import rootpath
 import pandas as pd
 import os
-from doc2vec.util.common import load_pdf, write_pdf, load_pickle, save_pickle
+from doc2vec.util.common import *
 
 
 class TestNoriAnalyzer(unittest.TestCase):
@@ -37,7 +37,7 @@ class TestNoriAnalyzer(unittest.TestCase):
 
 	def _get_ranking_news_li_news(self):
 		ranking_news_li = [
-			{'news_nm': '김건희 "바보같은 보수" 폄훼에…원팀·지지층 실망 우려', 'url': 'https://n.news.naver.com/article/003/0010948194',
+			{'news_nm': '공수처', 'url': 'https://n.news.naver.com/article/003/0010948194',
 			 'service_date': '2022-01-17T10:48:00+09:00', 'company': 'newsis', 'ranking_num': 1, 'platform': 'naver',
 			 'reg_date': '2022-01-17T00:00:00+09:00'}]
 
@@ -140,6 +140,41 @@ class TestNoriAnalyzer(unittest.TestCase):
 		df = pd.read_csv(file_path, delimiter=',', header=0)
 		self.logger.info(df.tail())
 		self.nori.put_data(df.to_dict(orient='records'))
+
+
+	def test_news_contents(self):
+		self.nori.update_index_setting()
+		news_df = load_pdf("news_train.csv", sep="^")
+		print(news_df.shape)
+		news_df.drop_duplicates(['news_id'], keep='last', inplace=True)
+		print(news_df.shape)
+
+		import string
+		table = str.maketrans({key: " " for key in string.punctuation})
+
+		news_content = news_df.iloc[102].article_contents
+		print("<<before>>")
+		print(news_content)
+		news_content = clean_html_tag_in_text(news_content)
+
+		news_content = self.nori._remove_text_in_title(news_content.translate(table))
+		news_content = news_content.replace('\n', '').replace("\r", '').replace("|", '')
+
+		print("<<after>>")
+		print(news_content)
+
+		prefix_index = 'test-doc2vec'
+
+		body = {
+			"analyzer": "my_analyzer",
+			"text": news_content
+		}
+
+		res2 = self.nori.es_client.indices.analyze(index=prefix_index, body=body)
+		print([t.get('token') for t in res2.get('tokens')])
+
+
+
 
 
 

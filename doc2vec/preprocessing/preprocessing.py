@@ -5,15 +5,68 @@ from tabulate import tabulate
 import rootpath
 import os
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
+import time
+import re
+from konlpy.tag import Mecab
+
+URL_PATTERN = re.compile(
+	r'^(?:http|ftp)s?://'  # http:// or https://
+	r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|'  # domain...
+	r'localhost|'  # localhost...
+	r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'  # ...or ip
+	r'(?::\d+)?'  # optional port
+	r'(?:/?|[/?]\S+)$', re.IGNORECASE)
 
 
-def generate_tagged_document_by_pandas(x_train_df, y_train_series):
+# html 태그 제거
+HTML_PATTERN = re.compile('<.*?>')
+
+# &quot;와 같은 태그 제거
+HTML_CHAR_PATTERN = re.compile("&.*?;")
+MULTIPLE_SPACES = re.compile(' +', re.UNICODE)
+WIKI_REMOVE_CHARS = re.compile("'+|(=+.{2,30}=+)|__TOC__|(ファイル:).+|:(en|de|it|fr|es|kr|zh|no|fi):|\n", re.UNICODE)
+WIKI_SPACE_CHARS = re.compile("(\\s|゙|゚|　)+", re.UNICODE)
+EMAIL_PATTERN = re.compile("(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)", re.UNICODE)
+WIKI_REMOVE_TOKEN_CHARS = re.compile("(\\*$|:$|^파일:.+|^;)", re.UNICODE)
+# [출처=이데일리] 또는 [출처=http...] 제거
+REF_PATTERN = re.compile("\[출처(.*?)\]", re.UNICODE)
+
+tokenizer = Mecab()
+
+def tokenize(content):
+	# install : https://konlpy-ko.readthedocs.io/ko/v0.4.3/install/
+	# 품사 정보 확인
+	# tokenizer.pos(content)
+	# Token으로 쪼개기
+	return tokenizer.morphs(content)
+
+def clean_content(content):
+	content = re.sub(EMAIL_PATTERN, ' ', content)
+	content = re.sub(URL_PATTERN, ' ', content)
+	content = re.sub(HTML_PATTERN, ' ', content)
+	content = re.sub(HTML_CHAR_PATTERN, ' ', content)
+	content = re.sub(WIKI_REMOVE_CHARS, ' ', content)
+	content = re.sub(WIKI_SPACE_CHARS, ' ', content)
+	content = re.sub(MULTIPLE_SPACES, ' ', content)
+
+	content = re.sub(REF_PATTERN, ' ', content)
+
+
+	return content
+
+
+def generate_tagged_document_by_pandas(x_train_df):
+	# def generate_tagged_document_by_pandas(x_train_df, y_train_series):
+
 	docs = []
 	for idx, row in x_train_df.iterrows():
-		# y_train_series는 series 데이터 임
-		# print(idx, row['tagged_doc'], " -> ", y_train_series.iloc[idx])
-		docs.append(gensim.models.doc2vec.TaggedDocument(row['tagged_doc'], [y_train_series.iloc[idx]]))
+		docs.append(gensim.models.doc2vec.TaggedDocument(row['tagged_doc'], [row['news_id']]))
+
+	# for idx, row in x_train_df.iterrows():
+	# 	# y_train_series는 series 데이터 임
+	# 	# print(idx, row['tagged_doc'], " -> ", y_train_series.iloc[idx])
+	# 	docs.append(gensim.models.doc2vec.TaggedDocument(row['tagged_doc'], [y_train_series.iloc[idx]]))
 
 	return docs
 
@@ -24,16 +77,19 @@ def reform_news_df(df: pd.DataFrame):
 	#
 	# df = load_pdf("news_1.csv", sep="^")
 	# print(df.columns)
-	df = df.astype({'service_dt': str})
-	df['service_dt'] = df['service_dt'].apply(lambda x: datetime.strptime(x, '%Y%m%d%H%M').strftime(
+	new_df = df.copy()
+	new_df = new_df.astype({'service_dt': str})
+	new_df['service_dt'] = new_df['service_dt'].apply(lambda x: datetime.strptime(x, '%Y%m%d%H%M').strftime(
 		'%Y-%m-%dT%H:%M:%S+09:00'))
-	df = df.rename(columns={'title': 'news_nm', 'article_contents_bulk': 'news_content', 'section_name': 'section',
-							'service_dt': 'service_date'})
+	new_df = new_df.rename(
+		columns={'title': 'news_nm', 'article_contents_bulk': 'news_content', 'section_name': 'section',
+				 'service_dt': 'service_date'})
 
-	df.drop(columns=['unnamed: 0'], inplace=True)
+	if 'unnamed: 0' in new_df.columns.tolist():
+		new_df.drop(columns=['unnamed: 0'], inplace=True)
 
-	print(df.tail())
-	return df
+	print(new_df.tail())
+	return new_df
 
 
 def load_pdf(file_name: str = "view_data.csv", sep: str = ",", file_path: str = None) -> pd:
@@ -60,9 +116,8 @@ def load_pdf(file_name: str = "view_data.csv", sep: str = ",", file_path: str = 
 	return df
 
 
-def is_contain_str(news_nm):
-	check_str_li = ['BGM', '클로징', '썰전 라이브 다시보기']
-	pop_list = list(filter(lambda x: x in news_nm, check_str_li))
+def is_contain_str(news_nm, stop_words=['BGM', '클로징', '썰전 라이브 다시보기']):
+	pop_list = list(filter(lambda x: x in news_nm, stop_words))
 	if pop_list:
 		return True
 	else:
@@ -89,9 +144,15 @@ def user_history_df(file_path: str):
 
 
 def normalize_d2v_docuemnt(model: gensim.models.doc2vec.Doc2Vec, d2v_document: list):
+	import time
+	from tqdm import tqdm
+
+	start_time = time.time()
 	news_topic_arr = []
 
-	for td in d2v_document:
+	d2v_size = len(d2v_document)
+	for index in tqdm(range(d2v_size), desc='document process...', mininterval=10):
+		td = d2v_document[index]
 		# td : TaggedDocument(['홍남기', '부총리', '기획', '재정부', '장관', ..., '통보'], ['2022030610442141299'])
 		# td.tags : ['2022030610442141299']
 		# td.words : ['홍남기', '부총리', '기획', '재정부', '장관', ..., '통보']
@@ -112,6 +173,7 @@ def normalize_d2v_docuemnt(model: gensim.models.doc2vec.Doc2Vec, d2v_document: l
 			news_topic_arr.append([news_id, idx, t / norm])
 	# print(news_topic_arr1)
 
+	# topic은 vector로 현재 모델에서 1000으로 사용되고 있음
 	topic_df = pd.DataFrame(
 		columns=['news_id', 'topic', 'w'],
 		data=news_topic_arr
@@ -119,6 +181,8 @@ def normalize_d2v_docuemnt(model: gensim.models.doc2vec.Doc2Vec, d2v_document: l
 
 	# topic_df.to_csv('temp/news_d2v_w.csv', index=False)
 	write_pdf(topic_df, "news_d2v_w.csv")
+
+	print("total_time: ", timedelta(seconds=(time.time() - start_time)))
 
 	return topic_df
 

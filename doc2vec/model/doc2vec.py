@@ -25,6 +25,9 @@ def build_model() -> gensim.models.doc2vec.Doc2Vec:
 	model = gensim.models.doc2vec.Doc2Vec(vector_size=1000, min_count=2, epochs=100,
 										  alpha=0.025, min_alpha=0.00025, workers=cores,
 										  window=3, dm=1, seed=9999)
+	# model = gensim.models.doc2vec.Doc2Vec(vector_size=1000, min_count=2, epochs=3,
+	# 									  alpha=0.025, min_alpha=0.00025, workers=cores,
+	# 									  window=3, dm=1, seed=9999)
 
 	print(type(model))
 

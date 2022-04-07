@@ -20,12 +20,13 @@ class Parser(metaclass=Singleton):
         self._load_build_conf(conf_path=self.root_path)
 
     def _load_elastic_conf(self):
-        self._elastic_shard = self._conf_parser.getint("elastic", "ELASTIC_DEV_SHARD") if self._build_level in [
-            'dev','local'] \
-            else self._conf_parser.getint("elastic", "ELASTIC_PROD_SHARD")
-        self._elastic_replica = self._conf_parser.getint("elastic", "ELASTIC_DEV_REPLICA") if self._build_level in [
-            'dev', 'local']            \
-            else self._conf_parser.getint("elastic", "ELASTIC_PROD_REPLICA")
+        # self._elastic_shard = self._conf_parser.getint("elastic", "ELASTIC_DEV_SHARD") if self._build_level in [
+        #     'dev','local'] \
+        #     else self._conf_parser.getint("elastic", "ELASTIC_PROD_SHARD")
+        # self._elastic_replica = self._conf_parser.getint("elastic", "ELASTIC_DEV_REPLICA") if self._build_level in [
+        #     'dev', 'local']            \
+        #     else self._conf_parser.getint("elastic", "ELASTIC_PROD_REPLICA")
+        pass
 
     def _load_conf(self, conf_path:Path):
         build_path = os.path.join(conf_path, *["conf", "build.ini"])
