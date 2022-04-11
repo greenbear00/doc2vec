@@ -156,8 +156,9 @@ bash <(curl -s https://raw.githubusercontent.com/konlpy/konlpy/master/scripts/me
 meacb-ko url: https://bitbucket.org/eunjeon/mecab-ko-dic/src/master/
 (osx 사용자라면, 마지막 su & make install을 sudo make install로 변경)
 ```
-$ tar zxfv mecab-XX-ko-XX.tar.gz
-$ cd mecab-XX-ko-XX
+$ cd ~/project
+$ tar zxfv mecab-0.996-ko-0.9.2.tar.gz
+$ cd mecab-0.996-ko-0.9.2.tar.gz
 $ ./configure 
 $ make
 $ make check
@@ -169,18 +170,19 @@ $ su
 사전 url: https://bitbucket.org/eunjeon/mecab-ko-dic/downloads/
 만약 중간에 configure 등이 수행이 안된다면 brew install autoconf automake libtool
 ```
-$ tar zxfv mecab-ko-dic-XX.tar.gz
-$ cd mecab-ko-dic-XX
+$ cd ~/project
+$ tar zxfv mecab-ko-dic-2.1.1-20180720.tar.gz
+$ cd mecab-ko-dic-2.1.1-20180720.tar.gz
 $ ./autogen.sh
 $ ./configure
 $ make
 $ sudo make install
-
 ```
 3. Mecab-ko 사전 실행 및 테스트
+meacb이 설치된 디렉토리에서 mecab -d . 로 수행하면 됩
 ```
 # mecab가 설치된 디렉토리로 이동해서
-$ cd /usr/local/lib/mecab/dic/mecab-ko-dic
+$ cd ~/project/mecab-ko-dic-2.1.1-20180720
 total 219160
 -rw-r--r--  1 jmac  admin    262560  4 11 09:46 char.bin
 -rw-r--r--  1 jmac  admin      1419  4 11 09:46 dicrc
@@ -203,9 +205,9 @@ $ mecab -d .
 테스트	NNG,행위,F,테스트,*,*,*,*
 입니다	VCP+EF,*,F,입니다,Inflect,VCP,EF,이/VCP/*+ᄇ니다/EF/*
 .	SF,*,*,*,*,*,*,*
-EOS
-^C
+
 ```
+
 4. python 연동
 위 osx 사전 준비사항을 통해서 (mecab-python===0.996-ko-0.9.2)가 이미 설치
 아래 명령어로 설치할 경우, mecab-python3-1.0.5 버전이 최신으로 설치됨 (아무래도 mecab-python3-1.0.5로 진행하는게 나을 듯)
@@ -213,12 +215,12 @@ EOS
 $ pip install mecab-python3
 ```
 
-### Mecab(은전한잎) 사전 추가
-
 ### Mecab(은전한잎) 사용
+위에서 사전을 ~/project/mecab-ko-dic-2.1.1-20180720/에 설치하고 이를 빌드하면
+
+자동으로 /usr/local/lib/mecab/dic/mecab-ko-dic 폴더에 rewrite를 수행함
 ```
 from konlpy.tag import Mecab
-# 또는 실제 사전이 설치된 위치를 직접 집어넣어도 됨
 # m = Mecab("/usr/local/lib/mecab/dic/mecab-ko-dic")
 m = Mecab() 
 
@@ -231,7 +233,52 @@ m.morphs("안녕하세요. 테스트입니다.")
 # ['안녕', '하', '세요', '.', '테스트', '입니다', '.']
 ```
 
+### Mecab(은전한잎) 사전 추가
+위에서 분석된 데이터 중 일부 내용을 사전으로 추가하려면....
+참조: https://docs.google.com/spreadsheets/d/1-9blXKjtjeKZqsf4NzHeYJCrr49-nXeRF6D80udfcwY/edit#gid=589544265
 
+데이터는 아래와 같이 들어가는데...
+`표층형	0	0	0	품사 태그	의미부류	종성 유무	읽기	타입	첫번째 품사	마지막 품사	원형	인덱스 표현`
+- 표층형: 실제 단어를 입력하고
+- 0, 0, 0 
+- 품사 태그: NNG, NNP 등
+- 의미분류: 인명, 지명, * 
+- 종성유무: T, F (받침유무로 원 단어의 끝 글자 받침 유무로 T, F 입력)
+- 읽기: 
+- 타입: Inflect - 활용, Compound - 복합명사, Preanalysis - 기분석
+- 첫번째 품사, 마지막 품사: 기분석으로 나눠지는 토큰에 대한 각 품사 입력 (mecab-ko-dic 품사 태그를 참조하여 입력)
+- 원형: 토큰 들로 나눠지는 부분 +로 입력 (각 토큰: 표층형/품사태그/의미분류)
+- 인덱스 표현: 토큰들로 나눠지는 부분 +로 입력 (각 토큰: 표층형/품사태그/의미부류/PositionIncrementAttribute/PositionLengthAttrigute)
+
+```
+예) 여론조사
+------------------------------------
+여론	NNG,정적사태,T,여론,*,*,*,*
+조사	NNG,*,F,조사,*,*,*,*
+
+사용자 사전으로 등록시, 아래와 같이 할 수 있음
+------------------------------------
+여론조사,,,,NNP,*,F,여론조사,Preanalysis,NNG,NNG,여론/NNG/*+조사/NNG/*
+```
+실제 사전 추가 후, tools/add-userdic.sh을 통해서 추가한 다음에<br>
+재 빌드를 해야 추가됨 
+```
+$ cd ~/project/mecab-ko-dic-2.1.1-20180720 
+$ vi user-dic/mecab-user-dict.csv
+여론조사,,,,NNP,*,F,여론조사,Preanalysis,NNG,NNG,여론/NNG/*+조사/NNG/*
+
+$ ./tools/add-userdic.sh
+$ ./autogen.sh
+$ ./configure
+$ make
+$ sudo make install
+$ ls -l /usr/local/lib/mecab/dic/mecab-ko-dic
+$ sudo chown jmac:staff /usr/local/lib/mecab/dic/mecab-ko-dic/*
+$ mecab
+여론조사
+여론조사	NNP,*,F,여론조사,Preanalysis,NNG,NNG,여론/NNG/*+조사/NNG/
+EOF
+```
 
 
 
