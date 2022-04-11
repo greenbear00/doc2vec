@@ -261,17 +261,14 @@ m.morphs("안녕하세요. 테스트입니다.")
 여론조사,,,,NNP,*,F,여론조사,Preanalysis,NNG,NNG,여론/NNG/*+조사/NNG/*
 ```
 실제 사전 추가 후, tools/add-userdic.sh을 통해서 추가한 다음에<br>
-재 빌드를 해야 추가됨 
+재 빌드를 해야 추가됨 (현재 사전 작업한 장소는 나중에 /user/local/lib/mecab/dic/mecab-ko-dic 폴더에 rewrite됨)
 ```
 $ cd ~/project/mecab-ko-dic-2.1.1-20180720 
 $ vi user-dic/mecab-user-dict.csv
 여론조사,,,,NNP,*,F,여론조사,Preanalysis,NNG,NNG,여론/NNG/*+조사/NNG/*
 
 $ ./tools/add-userdic.sh
-$ ./autogen.sh
-$ ./configure
-$ make
-$ sudo make install
+$ make install
 $ ls -l /usr/local/lib/mecab/dic/mecab-ko-dic
 $ sudo chown jmac:staff /usr/local/lib/mecab/dic/mecab-ko-dic/*
 $ mecab
