@@ -26,7 +26,12 @@ class Parser(metaclass=Singleton):
         # self._elastic_replica = self._conf_parser.getint("elastic", "ELASTIC_DEV_REPLICA") if self._build_level in [
         #     'dev', 'local']            \
         #     else self._conf_parser.getint("elastic", "ELASTIC_PROD_REPLICA")
-        pass
+        self._elastic_shard = self._conf_parser.getint("elastic", "ELASTIC_DEV_SHARD") if self._build_level in [
+            'dev','local'] \
+            else None
+        self._elastic_replica = self._conf_parser.getint("elastic", "ELASTIC_DEV_REPLICA") if self._build_level in [
+            'dev', 'local']            \
+            else None
 
     def _load_conf(self, conf_path:Path):
         build_path = os.path.join(conf_path, *["conf", "build.ini"])
@@ -46,8 +51,6 @@ class Parser(metaclass=Singleton):
 
             with open(config_file, 'r') as f:
                 self._config = json.load(f)
-
-
 
     @property
     def elastic_shard(self):

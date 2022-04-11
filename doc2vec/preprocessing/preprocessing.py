@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 import time
 import re
 from konlpy.tag import Mecab
+from dateutil import relativedelta
 
 URL_PATTERN = re.compile(
 	r'^(?:http|ftp)s?://'  # http:// or https://
@@ -31,14 +32,40 @@ EMAIL_PATTERN = re.compile("(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)",
 WIKI_REMOVE_TOKEN_CHARS = re.compile("(\\*$|:$|^파일:.+|^;)", re.UNICODE)
 # [출처=이데일리] 또는 [출처=http...] 제거
 REF_PATTERN = re.compile("\[출처(.*?)\]", re.UNICODE)
+# 〈사진-연합뉴스〉 제거
+REF_PATTERN2 = re.compile("〈사진(.*?)〉", re.UNICODE)
 
-tokenizer = Mecab()
 
-def tokenize(content):
+def get_tokenizer(tokenizer_name:str = "mecab"):
+	tokenizer = None
+	if tokenizer_name.lower() == "mecab":
+		tokenizer = Mecab(dicpath="/usr/local/lib/mecab/dic/mecab-ko-dic")
+
+	return tokenizer
+
+
+def getMonthRage(year, month):
+	this_month = datetime(year=year, month=month, day=1).date()
+	next_month = this_month + relativedelta.relativedelta(months=1)
+	# print(f"this month: {this_month}")
+	# print(f"next month: {next_month}")
+
+	first_day = this_month
+	last_day = next_month - timedelta(days=1)
+	# print(f"first day: {first_day}")
+	# print(f"last day: {last_day}")
+
+	return (first_day, last_day)
+
+
+def tokenize(tokenizer, content):
 	# install : https://konlpy-ko.readthedocs.io/ko/v0.4.3/install/
+
 	# 품사 정보 확인
 	# tokenizer.pos(content)
+
 	# Token으로 쪼개기
+	# tokenizer.morphs(content)
 	return tokenizer.morphs(content)
 
 def clean_content(content):
@@ -51,8 +78,9 @@ def clean_content(content):
 	content = re.sub(MULTIPLE_SPACES, ' ', content)
 
 	content = re.sub(REF_PATTERN, ' ', content)
+	content = re.sub(REF_PATTERN2, ' ', content)
 
-
+	content = content.replace('·', ' ')
 	return content
 
 

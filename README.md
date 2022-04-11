@@ -117,3 +117,122 @@ NBTestTest3,"엘라스틱에서 termvector로 조회하면, freq때문에 중복
 
 함수: test_recommand_for_news
 - test 데이터를 기준으로 유사한 연관 뉴스를 추천
+
+
+# 뉴스 추천 with Mecab(은전한잎)
+
+## 사전 준비 사항
+
+### osx 사전 준비사항
+pip install konlpy 로 바로 설치 후 Mecab 호출시, 아래와 같은 오류가 난다면
+```
+from konlpy.tag import Mecab
+tokenizer = Mecab()
+
+
+Traceback (most recent call last):
+
+  File "/home/<...>/testvenv/lib/python3.6/site-packages/konlpy/tag/_mecab.py", line 107, in __init__
+
+    self.tagger = Tagger('-d %s' % dicpath)
+
+NameError: name 'Tagger' is not defined
+```
+터미널에서 아래 명령어 수행 후(아래 부분 설치해도 위의 에러가 아직도 발생함)
+```
+bash <(curl -s https://raw.githubusercontent.com/konlpy/konlpy/master/scripts/mecab.sh)
+```
+해당 프로젝트가 실행되는 python 가상 환경에서 Mecab을 직접 설치 또는 <b>pip install mecab-python3</b>로 수행
+(Finished processing dependencies for mecab-python===0.996-ko-0.9.2)
+```
+(venv) git clone https://bitbucket.org/eunjeon/mecab-python-0.996.git
+(venv) cd mecab-python-0.996/
+(venv) python setup.py build
+(venv) python setup.py install
+```
+
+### Mecab(은전한잎) 사전 설치
+1. Mecab-ko 설치
+meacb-ko url: https://bitbucket.org/eunjeon/mecab-ko-dic/src/master/
+(osx 사용자라면, 마지막 su & make install을 sudo make install로 변경)
+```
+$ tar zxfv mecab-XX-ko-XX.tar.gz
+$ cd mecab-XX-ko-XX
+$ ./configure 
+$ make
+$ make check
+$ su
+# make install
+```
+
+2. Mecab-ko 사전 설치
+사전 url: https://bitbucket.org/eunjeon/mecab-ko-dic/downloads/
+만약 중간에 configure 등이 수행이 안된다면 brew install autoconf automake libtool
+```
+$ tar zxfv mecab-ko-dic-XX.tar.gz
+$ cd mecab-ko-dic-XX
+$ ./autogen.sh
+$ ./configure
+$ make
+$ sudo make install
+
+```
+3. Mecab-ko 사전 실행 및 테스트
+```
+# mecab가 설치된 디렉토리로 이동해서
+$ cd /usr/local/lib/mecab/dic/mecab-ko-dic
+total 219160
+-rw-r--r--  1 jmac  admin    262560  4 11 09:46 char.bin
+-rw-r--r--  1 jmac  admin      1419  4 11 09:46 dicrc
+-rw-r--r--  1 jmac  admin     76393  4 11 09:46 left-id.def
+-rw-r--r--  1 jmac  admin  20585296  4 11 09:46 matrix.bin
+-rw-r--r--  1 jmac  admin  10583428  4 11 09:46 model.bin
+-rw-r--r--  1 jmac  admin      1550  4 11 09:46 pos-id.def
+-rw-r--r--  1 jmac  admin      2479  4 11 09:46 rewrite.def
+-rw-r--r--  1 jmac  admin    114511  4 11 09:46 right-id.def
+-rw-r--r--  1 jmac  admin  80558854  4 11 09:46 sys.dic
+-rw-r--r--  1 jmac  admin      4170  4 11 09:46 unk.dic
+
+# mecab -d . 로 실행시킨 다음에, 커서가 깜빡일때 문장 하나 입력 후 엔터를 하면, 문장 분석 결과가 나옴.
+$ mecab -d .
+안녕하세요. 테스트입니다.
+안녕	NNG,행위,T,안녕,*,*,*,*
+하	XSV,*,F,하,*,*,*,*
+세요	EP+EF,*,F,세요,Inflect,EP,EF,시/EP/*+어요/EF/*
+.	SF,*,*,*,*,*,*,*
+테스트	NNG,행위,F,테스트,*,*,*,*
+입니다	VCP+EF,*,F,입니다,Inflect,VCP,EF,이/VCP/*+ᄇ니다/EF/*
+.	SF,*,*,*,*,*,*,*
+EOS
+^C
+```
+4. python 연동
+위 osx 사전 준비사항을 통해서 (mecab-python===0.996-ko-0.9.2)가 이미 설치
+아래 명령어로 설치할 경우, mecab-python3-1.0.5 버전이 최신으로 설치됨 (아무래도 mecab-python3-1.0.5로 진행하는게 나을 듯)
+```
+$ pip install mecab-python3
+```
+
+### Mecab(은전한잎) 사전 추가
+
+### Mecab(은전한잎) 사용
+```
+from konlpy.tag import Mecab
+# 또는 실제 사전이 설치된 위치를 직접 집어넣어도 됨
+# m = Mecab("/usr/local/lib/mecab/dic/mecab-ko-dic")
+m = Mecab() 
+
+# 품사 정보 확인
+m.pos("안녕하세요. 테스트입니다.")
+#[('안녕', 'NNG'), ('하', 'XSV'), ('세요', 'EP+EF'), ('.', 'SF'), ('테스트', 'NNG'), ('입니다', 'VCP+EF'), ('.', 'SF')]
+
+# Token으로 쪼개기
+m.morphs("안녕하세요. 테스트입니다.")
+# ['안녕', '하', '세요', '.', '테스트', '입니다', '.']
+```
+
+
+
+
+
+
