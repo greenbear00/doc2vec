@@ -22,12 +22,21 @@ def build_model() -> gensim.models.doc2vec.Doc2Vec:
 	# negative: Complexity Reduction 방법, negative sampling
 	# max_epochs: 최대 학습 횟수
 	# 정확도 참고: Dipika Baad의 Doc2Vec 매개변수 조합에 대한 정확도
-	model = gensim.models.doc2vec.Doc2Vec(vector_size=1000, min_count=2, epochs=100,
+	# (
+	# 	window=10,
+	# size=150,
+	# alpha=0.025,
+	# min_alpha=0.025,
+	# min_count=2,
+	# dm =1,
+	# negative = 5,
+	# seed = 9999)
+	model = gensim.models.doc2vec.Doc2Vec(vector_size=1000, min_count=1, epochs=100,
 										  alpha=0.025, min_alpha=0.00025, workers=cores,
-										  window=3, dm=1, seed=9999)
-	# model = gensim.models.doc2vec.Doc2Vec(vector_size=1000, min_count=2, epochs=3,
+										  negative=3, window=10, dm=1, seed=9999)
+	# model = gensim.models.doc2vec.Doc2Vec(vector_size=1000, min_count=2, epochs=100,
 	# 									  alpha=0.025, min_alpha=0.00025, workers=cores,
-	# 									  window=3, dm=1, seed=9999)
+	# 									  window=15, sampling_threshold=1e-5, negative_size=5, dm=1, seed=9999)
 
 	print(type(model))
 

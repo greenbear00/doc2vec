@@ -224,13 +224,17 @@ from konlpy.tag import Mecab
 # m = Mecab("/usr/local/lib/mecab/dic/mecab-ko-dic")
 m = Mecab() 
 
-# 품사 정보 확인
+# 품사 태깅(Part-of-speech tagging)
 m.pos("안녕하세요. 테스트입니다.")
 #[('안녕', 'NNG'), ('하', 'XSV'), ('세요', 'EP+EF'), ('.', 'SF'), ('테스트', 'NNG'), ('입니다', 'VCP+EF'), ('.', 'SF')]
 
-# Token으로 쪼개기
+# 형태소 추출
 m.morphs("안녕하세요. 테스트입니다.")
 # ['안녕', '하', '세요', '.', '테스트', '입니다', '.']
+
+# 명사 추출
+m.nouns("안녕하세요. 테스트입니다.")
+# ['안녕', '테스트']
 ```
 
 ### Mecab(은전한잎) 사전 추가
@@ -277,6 +281,62 @@ $ mecab
 EOF
 ```
 
+### Mecab(은전한잎) 우선순위 높이기
+현재 user-dic 밑에 있는 person.csv에 '한무경'을 추가하면 이미 단어가 '한'+'무경'으로 되어 있어서
+우선순위를 높여야 함.
+```
+$ cd ~/project/mecab-ko-dic-2.1.1-20180720/  
+$ ls -l user-dic
+total 32
+-rw-r--r--@ 1 jmac  staff  1593  7 20  2018 README.md
+-rw-r--r--@ 1 jmac  staff   128  4 14 17:26 nnp.csv
+-rw-r--r--@ 1 jmac  staff   131  4 14 17:47 person.csv
+-rw-r--r--@ 1 jmac  staff   115  4 14 17:22 place.csv
 
+$ cat user-dic/person.csv
+까비,,,,NNP,인명,F,까비,*,*,*,*
+한무경,,,,NNP,인명,T,한무경,*,*,*,*
+
+# 빌드 및 적용
+$ ./tools/add-userdic.sh
+$ make clean
+$ make install
+
+# 실제 '한무경'의 인명이 적용되었는지 확인하면, 이미 '한'+'무경'의 단어비용이 더 높아서 먼저 나옴
+$ mecab
+한무경
+한	MM,~가산명사,741,2660,2662,-1599,1063
+무경	NNG,,1780,3534,2648,-1592,2119
+EOS
+
+```
+
+방법은 실제 추가한 단어에 대해서 단어점수를 낮추는 방법이 있음
+```
+# 위에서 컴파일 해서 적용되면 '한무경'에 대한 단어 비용이 나오는데 지금 보면 '한'+'무경'이 더 높기에
+# 아래에 존재하는 '한무경	NNP,인명,1788,3550,5472,-2347,3125'에 대해서 낱말비용을 낮추면 됨
+$ ./tools/mecab-bestn.sh
+#표현층,품사,의미부류,좌문맥ID,우문맥ID,낱말비용,연접비용,누적비용
+
+한무경
+한	MM,~가산명사,741,2660,2662,-1599,1063
+무경	NNG,,1780,3534,2648,-1592,2119
+EOS
+한무경	NNP,인명,1788,3550,5472,-2347,3125
+EOS
+...
+
+# 낮추는 방법은 위에서 추가한 인명 사전이 컴파일된 파일에서 직접 낱말비용을 낮추는 방법이 있음
+# 사용자가 추가한 사전은 ~/project/mecab-ko-dic-2.1.1-20180720/user-dict/person.csv에 있으며
+# 컴파일된 인명 사전은 ~/project/mecab-ko-dic-2.1.1-20180720/user-person.csv에 존재함
+# 컴파일된 인명 사전의 '한무경'에서 낱말비용 5472->0으로 변경 후, make install 수행하면 됨
+$ vi user-person.csv
+까비,1788,3549,5472,NNP,인명,F,까비,*,*,*,*
+한무경,1788,3550,0,NNP,인명,T,한무경,*,*,*,*
+
+# 빌드 및 적용 (./tools/add-userdic.sh는 하면 안됨)
+$ make clean
+$ make install
+```
 
 
